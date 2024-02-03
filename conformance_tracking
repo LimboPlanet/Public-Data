@@ -1,0 +1,56 @@
+import pyodbc
+import pandas as pd
+import time
+from datetime import datetime
+
+# Database connection details
+connection_string = "your_database_connection_string"
+conn = pyodbc.connect(connection_string)
+cursor = conn.cursor()
+
+# Threshold values and duration
+threshold_values = {'tag1': 50, 'tag2': 75}  # Replace with your tag names and threshold values
+duration_to_trigger = 300  # 5 minutes in seconds
+
+# CSV file details
+csv_file_path = "output.csv"
+
+# Timing variables
+start_times = {tag: None for tag in threshold_values}
+is_threshold_met = {tag: False for tag in threshold_values}
+
+def write_to_csv(data):
+    df = pd.DataFrame([data])
+    df.to_csv(csv_file_path, mode='a', header=False, index=False)
+
+while True:
+    for tag, threshold_value in threshold_values.items():
+        # Replace 'your_query_here' with your actual SQL query
+        cursor.execute(f'your_query_here_for_{tag}')
+        result = cursor.fetchone()
+
+        if result:
+            current_value = result[0]  # Adjust index based on your query result
+            print(f"{tag} - Current Value: {current_value}")
+
+            if current_value >= threshold_value:
+                if not is_threshold_met[tag]:
+                    start_times[tag] = time.time()
+                    is_threshold_met[tag] = True
+                    print(f"{tag} - Threshold met. Timing started.")
+            else:
+                if is_threshold_met[tag]:
+                    elapsed_time = time.time() - start_times[tag]
+                    print(f"{tag} - Threshold not met. Elapsed time: {elapsed_time} seconds")
+
+                    if elapsed_time >= duration_to_trigger:
+                        # Perform actions and write to CSV here
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        data_to_write = [timestamp, tag, current_value, elapsed_time]
+                        write_to_csv(data_to_write)
+
+                        print(f"{tag} - Data written to CSV.")
+                    
+                    is_threshold_met[tag] = False
+
+    time.sleep(60)  # Adjust sleep time as needed
